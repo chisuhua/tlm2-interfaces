@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <tlm>
 #include <type_traits>
+#include <sysc/utils/sc_typeindex.h>
 
 //! TLM2.0 components modeling CHI
 namespace chi {
@@ -1007,9 +1008,11 @@ struct chi_target_socket
  * free function easing handling of transactions and extensions
  *****************************************************************************/
 
-template <typename EXT> inline bool is_valid(EXT& ext) { return is_valid(&ext); }
+template <typename EXT> inline bool is_valid(EXT& ext) { return is_valid_msg(&ext) == nullptr; }
 
-template <typename EXT> bool is_valid(EXT* ext);
+template <typename EXT> bool is_valid(EXT* ext) { return is_valid_msg(ext) == nullptr; }
+
+template <typename EXT> char const* is_valid_msg(EXT* ext);
 
 inline bool is_dataless(const chi::chi_ctrl_extension* req_e) {
     switch(req_e->req.get_opcode()) {
@@ -1035,7 +1038,12 @@ inline bool is_dataless(const chi::chi_ctrl_extension* req_e) {
         case chi::rsp_optype_e::CompCMO:
         case chi::rsp_optype_e::CompStashDone:
             return true;
+        default:
+            break;
         }
+        break;
+    default:
+        break;
     }
     return false;
 }
@@ -1070,6 +1078,8 @@ inline bool is_request_order(const chi::chi_ctrl_extension* req_e) {
         case chi::req_optype_e::WriteUniquePtlStash:
         case chi::req_optype_e::WriteUniqueZero:
             return true;
+        default:
+            break;
         }
         return is_atomic(req_e);
     } else
@@ -1128,7 +1138,7 @@ template <> inline rsp_resperrtype_e into<rsp_resperrtype_e>(typename std::under
 //! @param the TxnID of the channel
 // A transaction request includes a TxnID that is used to identify the transaction from a given Requester
 inline void common::set_txn_id(unsigned int txn_id) {
-    sc_assert(txn_id <= 1024); // TxnID field is defined to accommodate up to 1024 outstanding transactions.
+    sc_assert(txn_id <= 4096); // TxnID field is defined to accommodate up to 1024 outstanding transactions.
     this->txn_id = txn_id;
 }
 

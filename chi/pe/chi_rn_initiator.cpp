@@ -12,7 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- */
+*/
 
 #ifndef SC_INCLUDE_DYNAMIC_PROCESSES
 #define SC_INCLUDE_DYNAMIC_PROCESSES
@@ -334,9 +334,8 @@ void convert_axi4ace_to_chi(tlm::tlm_generic_payload& gp, char const* name, bool
                 break;
             }
         } else {
-            auto allocate = (ace_ext->is_read_other_allocate() && axi_gp_cmd == tlm::TLM_WRITE_COMMAND) ||
-                    (ace_ext->is_write_other_allocate() && axi_gp_cmd == tlm::TLM_READ_COMMAND);
-            auto cachable = ace_ext->is_modifiable();
+            auto allocate = (ace_ext->is_allocate());
+            auto cachable = ace_ext->is_cacheable();
             auto ewa = ace_ext->is_bufferable();
             auto device = ace_ext->get_cache() < 2;
             mem_attr = (allocate ? 8 : 0) + (cachable ? 4 : 0) + (device ? 2 : 0) + (ewa ? 1 : 0);
@@ -380,8 +379,8 @@ void convert_axi4ace_to_chi(tlm::tlm_generic_payload& gp, char const* name, bool
     }
     chi_req_ext->req.set_mem_attr(mem_attr);
 
-    if(!chi::is_valid(chi_req_ext))
-        SCCFATAL(__FUNCTION__) << "Conversion created an invalid chi request, pls. check the AXI/ACE settings";
+    if(auto msg = chi::is_valid_msg(chi_req_ext))
+        SCCFATAL(__FUNCTION__) << "Conversion created an invalid chi request, pls. check the AXI/ACE settings: "<<msg;
 
     if(gp.has_mm())
         gp.set_auto_extension(chi_req_ext);
@@ -905,7 +904,7 @@ void chi::pe::chi_rn_initiator_b::exec_read_write_protocol(const unsigned int tx
                     << trans.get_address();
             if(protocol_cb[RDAT])
                 protocol_cb[RDAT](RDAT, trans);
-            phase = phase == chi::BEGIN_PARTIAL_DATA? chi::END_PARTIAL_DATA : chi::END_DATA;
+            phase = phase == chi::BEGIN_PARTIAL_DATA?(tlm::tlm_phase) chi::END_PARTIAL_DATA:(tlm::tlm_phase)END_DATA;
             delay = clk_if ? ::scc::time_to_next_posedge(clk_if) - 1_ps : SC_ZERO_TIME;
             socket_fw->nb_transport_fw(trans, phase, delay);
             beat_cnt++;
@@ -1006,7 +1005,7 @@ void chi::pe::chi_rn_initiator_b::exec_atomic_protocol(const unsigned int txn_id
                         << "), beat=" << input_beat_cnt << "/" << exp_beat_cnt;
                 if(protocol_cb[RDAT])
                     protocol_cb[RDAT](RDAT, trans);
-                phase = phase == chi::BEGIN_PARTIAL_DATA? chi::END_PARTIAL_DATA: chi::END_DATA;
+                phase = phase == chi::BEGIN_PARTIAL_DATA?(tlm::tlm_phase) chi::END_PARTIAL_DATA:(tlm::tlm_phase)END_DATA;
                 delay = clk_if ? ::scc::time_to_next_posedge(clk_if) - 1_ps : SC_ZERO_TIME;
                 socket_fw->nb_transport_fw(trans, phase, delay);
                 if(phase == chi::END_DATA) {
@@ -1203,7 +1202,7 @@ void chi::pe::chi_rn_initiator_b::handle_snoop_response(payload_type& trans,
                 not_finish &= 0x1; // clear bit1
                 if(protocol_cb[WDAT])
                     protocol_cb[WDAT](WDAT, trans);
-                phase = phase == chi::BEGIN_PARTIAL_DATA? chi::END_PARTIAL_DATA : chi::END_DATA;
+                phase = phase == chi::BEGIN_PARTIAL_DATA?(tlm::tlm_phase) chi::END_PARTIAL_DATA:(tlm::tlm_phase)END_DATA;
                 delay = clk_if ? ::scc::time_to_next_posedge(clk_if) - 1_ps : SC_ZERO_TIME;
                 socket_fw->nb_transport_fw(trans, phase, delay);
                 beat_cnt++;
